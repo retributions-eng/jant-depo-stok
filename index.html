@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#172d40">
+<title>Jant Depo | Stok Yönetimi</title>
+<style>
+:root{--navy:#172d40;--navy2:#25445b;--gold:#e3a64c;--bg:#f3f6f8;--ink:#203445;--muted:#6a7c89;--line:#dce4e9;--white:#fff;--green:#237447;--red:#b34136}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:12px 16px;background:var(--navy);color:#fff;font-weight:650}button.secondary{background:#e7edf1;color:var(--navy)}button.danger{background:#9c382f}.hidden{display:none!important}.shell{max-width:1080px;margin:auto;padding:18px}.brand{background:var(--navy);color:white;padding:20px;border-radius:18px;display:flex;gap:14px;align-items:center;margin-bottom:18px}.brandmark{width:48px;height:48px;border-radius:12px;background:var(--gold);color:var(--navy);display:grid;place-items:center;font-size:26px;font-weight:900}.brand h1{font-size:21px;margin:0}.brand p{margin:3px 0 0;color:#cbd8e1;font-size:13px}.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 4px 16px #20344508}.narrow{max-width:460px;margin:8vh auto}.field{display:grid;gap:6px;margin:12px 0}.field label{font-size:13px;font-weight:700;color:#435867}.field input,.field textarea,.field select,.search{width:100%;border:1px solid #cbd6dd;border-radius:10px;padding:12px;background:white;color:var(--ink)}.field textarea{min-height:78px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.muted{color:var(--muted);font-size:13px}.notice{padding:11px 13px;border-radius:10px;background:#edf6ef;color:#205f37;margin:12px 0}.notice.error{background:#fff0ed;color:#922f25}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.stat{padding:14px;border-radius:12px;background:#f2f6f8}.stat strong{display:block;font-size:25px}.stat span{font-size:12px;color:var(--muted)}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.tabs button{flex:1;min-width:130px}.tabs button.active{background:var(--gold);color:var(--navy)}.product{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}.product h3{margin:0 0 5px;font-size:17px}.stock{font-size:24px;font-weight:800}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.small{font-size:12px}.topline{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}#appView{display:none}footer{color:var(--muted);font-size:12px;text-align:center;padding:12px}
+@media(max-width:600px){.shell{padding:10px}.brand{padding:15px}.panel{padding:14px}.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.stat{padding:10px}.stat strong{font-size:21px}.grid2{grid-template-columns:1fr}.narrow{margin:4vh auto}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="brand"><div class="brandmark">J</div><div><h1>JANT DEPO</h1><p>Online stok yönetim sistemi</p></div></header>
+  <section id="configWarning" class="panel">
+    <h2>İlk bağlantı ayarı</h2>
+    <p>Bu dosya Supabase projenize bağlanmaya hazır. Aşağıdaki iki bilgiyi Supabase Dashboard → Project Settings → API bölümünden alıp girin. <b>service_role / secret key kullanmayın.</b></p>
+    <div class="field"><label>Project URL</label><input id="projectUrl" placeholder="https://proje-kimligi.supabase.co" autocomplete="url"></div>
+    <div class="field"><label>Publishable key (veya eski anon public key)</label><input id="publishableKey" placeholder="sb_publishable_... veya anon public key" autocomplete="off"></div>
+    <button id="saveConfig">Bağlantıyı kaydet ve devam et</button>
+    <p class="muted">Bu prototip ayarları yalnızca bu tarayıcıda saklar. Gerçek uygulamaya geçerken bunları GitHub koduna değil, güvenli yayın ayarlarına taşıyabiliriz. Publishable/anon anahtarı tek başına gizli değildir; veritabanı güvenliği RLS politikalarına dayanır.</p>
+  </section>
+
+  <section id="loginView" class="panel narrow hidden">
+    <h2>Hesabına giriş yap</h2><p class="muted">Jant depo kayıtlarına erişmek için oturum aç.</p>
+    <div id="loginMsg" class="notice hidden"></div>
+    <form id="loginForm">
+      <div class="field"><label>E-posta</label><input id="email" type="email" required autocomplete="username" placeholder="e-posta adresin"></div>
+      <div class="field"><label>Parola</label><input id="password" type="password" required autocomplete="current-password" placeholder="Supabase kullanıcı parolan"></div>
+      <button type="submit" style="width:100%">Giriş yap</button>
+    </form>
+    <p class="muted">İlk kez giriş yapıyorsan Supabase Authentication → Users bölümünde mevcut kullanıcı için parola belirle veya parola sıfırlama akışını kullan. Buraya veritabanı parolasını değil, kullanıcı parolanı yaz.</p>
+  </section>
+
+  <section id="appView">
+    <div class="panel">
+      <div class="topline"><div><h2 style="margin:0">Depo özeti</h2><div id="signedIn" class="muted"></div></div><button id="logout" class="secondary">Çıkış yap</button></div>
+      <div class="stats" style="margin-top:14px"><div class="stat"><strong id="productCount">0</strong><span>Ürün çeşidi</span></div><div class="stat"><strong id="totalStock">0</strong><span>Toplam adet</span></div><div class="stat"><strong id="movementCount">0</strong><span>Hareket sayısı</span></div></div>
+    </div>
+    <nav class="tabs"><button data-tab="list" class="active">Ürünler</button><button data-tab="new">Yeni ürün</button><button data-tab="move">Stok giriş / çıkış</button><button data-tab="history">Hareket geçmişi</button></nav>
+    <div id="appMsg" class="notice hidden"></div>
+    <section id="tab-list" class="panel">
+      <div class="topline"><h2>Ürünler</h2><button id="refresh" class="secondary">Yenile</button></div>
+      <input id="search" class="search" placeholder="Ürün adı, kod veya lokasyon ara...">
+      <div id="productsList"></div>
+    </section>
+    <section id="tab-new" class="panel hidden">
+      <h2>Yeni stok kartı</h2>
+      <form id="newProductForm">
+        <div class="field"><label>Ürün adı *</label><input id="pName" required maxlength="160"></div>
+        <div class="grid2">
+          <div class="field"><label>Depo içi lokasyon</label><input id="pLocation" maxlength="80" placeholder="A-01-02"></div>
+          <div class="field"><label>Malzeme grubu</label><select id="pGroup"><option value="">Seçiniz</option><option>Alüminyum</option><option>Çelik</option><option>Diğer</option></select></div>
+          <div class="field"><label>Uzunluk (mm)</label><input id="pLength" type="number" min="0.01" step="0.01"></div>
+          <div class="field"><label>Genişlik (mm)</label><input id="pWidth" type="number" min="0.01" step="0.01"></div>
+          <div class="field"><label>Et kalınlığı (mm)</label><input id="pThickness" type="number" min="0.01" step="0.01"></div>
+          <div class="field"><label>İlk stok miktarı (adet)</label><input id="pStock" type="number" min="0" step="1" value="0" required></div>
+        </div>
+        <div class="field"><label>Özel açıklama</label><textarea id="pDescription" maxlength="2000"></textarea></div>
+        <p class="muted">Ürün kodu sunucu tarafında otomatik oluşturulacak. İlk stok miktarı sıfırdan büyükse ayrıca bir giriş hareketi oluşturulacak.</p>
+        <button type="submit">Ürün kartını kaydet</button>
+      </form>
+    </section>
+    <section id="tab-move" class="panel hidden">
+      <h2>Stok giriş / çıkış</h2>
+      <form id="movementForm">
+        <div class="field"><label>Ürün</label><select id="mProduct" required></select></div>
+        <div class="field"><label>İşlem</label><select id="mType"><option value="GIRIS">Stok girişi</option><option value="CIKIS">Stok çıkışı</option></select></div>
+        <div class="field"><label>Miktar (adet)</label><input id="mQuantity" type="number" min="1" step="1" required></div>
+        <div class="field"><label>Açıklama (isteğe bağlı)</label><textarea id="mNote" maxlength="1000"></textarea></div>
+        <button type="submit">Hareketi kaydet</button>
+      </form>
+    </section>
+    <section id="tab-history" class="panel hidden">
+      <div class="topline"><h2>Hareket geçmişi</h2><button id="refreshHistory" class="secondary">Yenile</button></div>
+      <div id="historyList"></div>
+    </section>
+  </section>
+  <footer>Jant Depo • İlk kurulum sürümü • Gerçek stok girişlerine başlamadan önce ilk kullanıcıyla doğrulama yapın.</footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let supabase = null, user = null, products = [], movements = [];
+  const setMsg = (id, text, error=false) => { const el=$(id); el.textContent=text; el.classList.remove('hidden','error'); if(error) el.classList.add('error'); };
+  const clearMsg = id => $(id).classList.add('hidden');
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num = n => new Intl.NumberFormat('tr-TR',{maximumFractionDigits:2}).format(Number(n||0));
+  function initClient(url,key){supabase=window.supabase.createClient(url.replace(/\/+$/,''),key);}
+  function showLogin(){ $('configWarning').classList.add('hidden'); $('loginView').classList.remove('hidden'); $('appView').style.display='none'; }
+  function showApp(){ $('configWarning').classList.add('hidden'); $('loginView').classList.add('hidden'); $('appView').style.display='block'; $('signedIn').textContent=user?.email||''; }
+  async function restoreSession(){
+    const {data,error}=await supabase.auth.getSession();
+    if(error) return setMsg('loginMsg',error.message,true);
+    if(data.session){user=data.session.user;showApp();await loadAll();}
+    else showLogin();
+  }
+  $('saveConfig').addEventListener('click',async()=>{
+    const url=$('projectUrl').value.trim(),key=$('publishableKey').value.trim();
+    if(!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url)||!key){alert('Geçerli Supabase Project URL ve publishable/anon key gir.');return;}
+    localStorage.setItem('jant_supabase_url',url);localStorage.setItem('jant_supabase_key',key);
+    initClient(url,key); await restoreSession();
+  });
+  const oldUrl=localStorage.getItem('jant_supabase_url'),oldKey=localStorage.getItem('jant_supabase_key');
+  if(oldUrl&&oldKey){$('projectUrl').value=oldUrl;$('publishableKey').value=oldKey;initClient(oldUrl,oldKey);restoreSession();}
+  $('loginForm').addEventListener('submit',async e=>{
+    e.preventDefault();clearMsg('loginMsg');
+    const {data,error}=await supabase.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
+    if(error){setMsg('loginMsg','Giriş başarısız: '+error.message,true);return;}
+    user=data.user;showApp();await loadAll();
+  });
+  $('logout').addEventListener('click',async()=>{await supabase.auth.signOut();user=null;products=[];movements=[];showLogin();});
+  document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>switchTab(btn.dataset.tab)));
+  function switchTab(tab){document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['list','new','move','history'].forEach(t=>$('tab-'+t).classList.toggle('hidden',t!==tab));clearMsg('appMsg');if(tab==='move')fillProductSelect();}
+  async function loadAll(){
+    if(!user)return;
+    const [pr,mv]=await Promise.all([
+      supabase.from('products').select('id,product_code,product_name,warehouse_location,length_mm,width_mm,thickness_mm,description,material_group,current_stock,created_at').order('product_name'),
+      supabase.from('stock_movements').select('id,product_id,movement_type,quantity,note,created_at,products(product_code,product_name)').order('created_at',{ascending:false}).limit(100)
+    ]);
+    if(pr.error){setMsg('appMsg','Ürünler yüklenemedi: '+pr.error.message,true);return;}
+    if(mv.error){setMsg('appMsg','Hareketler yüklenemedi: '+mv.error.message,true);return;}
+    products=pr.data||[];movements=mv.data||[];
+    $('productCount').textContent=num(products.length);$('totalStock').textContent=num(products.reduce((a,p)=>a+Number(p.current_stock||0),0));$('movementCount').textContent=num(movements.length);
+    renderProducts();renderHistory();fillProductSelect();
+  }
+  function renderProducts(){
+    const q=$('search').value.trim().toLocaleLowerCase('tr');
+    const list=products.filter(p=>[p.product_name,p.product_code,p.warehouse_location].some(v=>String(v||'').toLocaleLowerCase('tr').includes(q)));
+    $('productsList').innerHTML=list.length?list.map(p=>`<article class="product"><div class="topline"><div><h3>${esc(p.product_name)}</h3><div class="muted">${esc(p.product_code)} · ${esc(p.material_group||'Grup belirtilmedi')}</div></div><div class="stock">${num(p.current_stock)} adet</div></div><p class="muted">Lokasyon: ${esc(p.warehouse_location||'—')} · Ölçüler: ${esc(p.length_mm??'—')} × ${esc(p.width_mm??'—')} × ${esc(p.thickness_mm??'—')} mm</p>${p.description?`<p>${esc(p.description)}</p>`:''}<button class="secondary" data-move="${esc(p.id)}">Giriş / çıkış yap</button></article>`).join(''):'<p class="muted">Henüz ürün yok veya aramanızla eşleşme bulunamadı.</p>';
+    document.querySelectorAll('[data-move]').forEach(b=>b.addEventListener('click',()=>{switchTab('move');$('mProduct').value=b.dataset.move;}));
+  }
+  function fillProductSelect(){const el=$('mProduct');if(!el)return;const prev=el.value;el.innerHTML=products.map(p=>`<option value="${esc(p.id)}">${esc(p.product_code)} — ${esc(p.product_name)} (stok: ${num(p.current_stock)})</option>`).join('');if(products.some(p=>p.id===prev))el.value=prev;}
+  function renderHistory(){
+    $('historyList').innerHTML=movements.length?movements.map(m=>`<article class="product"><div class="topline"><strong>${esc(m.products?.product_name||'Ürün')}</strong><strong>${m.movement_type==='GIRIS'?'+':'−'}${num(m.quantity)} adet</strong></div><div class="muted">${esc(m.products?.product_code||'')} · ${new Date(m.created_at).toLocaleString('tr-TR')}</div>${m.note?`<p>${esc(m.note)}</p>`:''}</article>`).join(''):'<p class="muted">Henüz stok hareketi yok.</p>';
+  }
+  $('search').addEventListener('input',renderProducts);
+  $('refresh').addEventListener('click',loadAll);$('refreshHistory').addEventListener('click',loadAll);
+  $('newProductForm').addEventListener('submit',async e=>{
+    e.preventDefault();clearMsg('appMsg');
+    const initial=Number($('pStock').value||0);
+    if(!Number.isInteger(initial)||initial<0){setMsg('appMsg','İlk stok sıfır veya pozitif tam sayı olmalı.',true);return;}
+    const payload={product_name:$('pName').value.trim(),warehouse_location:$('pLocation').value.trim()||null,material_group:$('pGroup').value||null,length_mm:$('pLength').value?Number($('pLength').value):null,width_mm:$('pWidth').value?Number($('pWidth').value):null,thickness_mm:$('pThickness').value?Number($('pThickness').value):null,description:$('pDescription').value.trim()||null};
+    // The product code is assigned by a database trigger added in the next setup step.
+    const {data,error}=await supabase.from('products').insert(payload).select('id,product_code').single();
+    if(error){setMsg('appMsg','Ürün kaydedilemedi. Ürün kodu otomatik üretim kuralı henüz kurulmamış olabilir: '+error.message,true);return;}
+    if(initial>0){const {error:moveError}=await supabase.from('stock_movements').insert({product_id:data.id,movement_type:'GIRIS',quantity:initial,note:'İlk stok kaydı'});if(moveError){setMsg('appMsg','Ürün kartı oluştu ancak ilk stok hareketi kaydedilemedi: '+moveError.message,true);await loadAll();return;}}
+    e.target.reset();$('pStock').value='0';await loadAll();switchTab('list');setMsg('appMsg','Ürün kartı kaydedildi: '+data.product_code);
+  });
+  $('movementForm').addEventListener('submit',async e=>{
+    e.preventDefault();clearMsg('appMsg');const quantity=Number($('mQuantity').value);
+    if(!Number.isInteger(quantity)||quantity<1){setMsg('appMsg','Miktar pozitif tam sayı olmalı.',true);return;}
+    const {error}=await supabase.from('stock_movements').insert({product_id:$('mProduct').value,movement_type:$('mType').value,quantity,note:$('mNote').value.trim()||null});
+    if(error){setMsg('appMsg','Stok hareketi kaydedilemedi: '+error.message,true);return;}
+    e.target.reset();await loadAll();switchTab('history');setMsg('appMsg','Stok hareketi başarıyla kaydedildi.');
+  });
+  supabase?.auth?.onAuthStateChange?.((_event,session)=>{if(session){user=session.user;}});
+})();
+</script>
+</body>
+</html>
